@@ -103,7 +103,7 @@ def tabela_resumo(resumo):
             "HE Feitas": lambda v: f"{v:.2f}".replace(".", ","),
             "HE Compensadas": lambda v: f"{v:.2f}".replace(".", ","),
             "Saldo (h)": lambda v: f"{v:.2f}".replace(".", ",")
-        }).applymap(
+        }).map(                              # ← era applymap
             lambda v: "color: red" if v < 0 else "color: green",
             subset=["Saldo (h)"]
         ),
