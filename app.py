@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import requests
+import io
 from datetime import date
 
 # ─── CONFIGURAÇÃO DA PÁGINA ───────────────────────────────────────────────────
@@ -15,33 +17,32 @@ st.markdown("---")
 
 # ─── CAMINHOS DOS ARQUIVOS ────────────────────────────────────────────────────
 CAMINHO_NORTE = (
-    r"C:\Users\isaac.rocha\USINA XAVANTES SA"
-    r"\Jefferson Ferreira - GESTÃO MANUTENÇÃO 2019- ONEDRIVE"
-    r"\07- CONTROLE DE COMPENS. H\2025\Horas_Extras.xlsx"
+    "https://usinaxavantes-my.sharepoint.com/:x:/g/personal/"
+    "jefferson_ferreira_usinaxavantes_onmicrosoft_com/"
+    "IQCJy61pO1IpQIfqerZclJO_AXYMNtQVZbVN6_gq9b36mIo?e=hQaxYV&download=1"
 )
 
 CAMINHO_XAVANTES = (
-    r"C:\Users\isaac.rocha\USINA XAVANTES SA"
-    r"\Jefferson Ferreira - GESTÃO MANUTENÇÃO 2019- ONEDRIVE"
-    r"\29 - Usina Xavantes\Controles\Banco_Horas\Banco_Horas.xlsx"
+    "https://usinaxavantes-my.sharepoint.com/:x:/g/personal/"
+    "jefferson_ferreira_usinaxavantes_onmicrosoft_com/"
+    "IQCs9x2Y5tE5SpbSw-pHPgi-AfrHK6d0ZcvqWkbyWVa53Ds?e=dKq6dz&download=1"
 )
 
-# ─── CARREGAMENTO ─────────────────────────────────────────────────────────────
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=600)
 def carregar_dados():
 
-    # NORTE — header na linha 1, colunas confirmadas
+    resp_norte = requests.get(CAMINHO_NORTE)
     df_norte = pd.read_excel(
-        CAMINHO_NORTE,
+        io.BytesIO(resp_norte.content),
         sheet_name="Base_Dados",
         header=1,
         usecols=["Colaborador", "Data Hora Extra", "Total Horas Extras"]
     )
     df_norte.columns = ["colaborador", "data", "horas"]
 
-    # XAVANTES GO — header na linha 1, colunas confirmadas
+    resp_xav = requests.get(CAMINHO_XAVANTES)
     df_xav = pd.read_excel(
-        CAMINHO_XAVANTES,
+        io.BytesIO(resp_xav.content),
         sheet_name="Base",
         header=1,
         usecols=["Colaborador", "Data", "Horas"]
@@ -150,6 +151,7 @@ def grafico_linhas(resumo_norte=None, resumo_xavantes=None):
             line=dict(color=c_pagar, width=2),
             marker=dict(size=8)
         ))
+
     fig.update_layout(
         title="Horas Extras por Colaborador",
         xaxis=dict(
@@ -170,6 +172,11 @@ def grafico_linhas(resumo_norte=None, resumo_xavantes=None):
 
 # ─── SIDEBAR — FILTROS ────────────────────────────────────────────────────────
 st.sidebar.header("⚙️ Filtros")
+
+# ── botão de atualizar ──
+if st.sidebar.button("🔄 Atualizar Dados"):
+    st.cache_data.clear()
+    st.rerun()
 
 data_inicio = st.sidebar.date_input(
     "Data Inicial",
