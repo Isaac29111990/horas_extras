@@ -71,10 +71,10 @@ def processar(df, data_inicio, data_fim):
         he_compensadas=("he_compensadas", "sum")
     ).reset_index()
 
-    resumo["he_a_pagar"] = (resumo["he_feitas"] - resumo["he_compensadas"]).clip(lower=0)
+    resumo["saldo"] = resumo["he_feitas"] - resumo["he_compensadas"]
     resumo = resumo[~resumo["colaborador"].isin(["nan", "None", "", "Colaborador"])]
 
-    return resumo.sort_values("he_a_pagar", ascending=False).reset_index(drop=True)
+    return resumo.sort_values("saldo", ascending=False).reset_index(drop=True)
 
 # ─── FORMATAÇÃO DE HORAS ──────────────────────────────────────────────────────
 def formatar_horas(h):
@@ -90,18 +90,26 @@ def formatar_horas(h):
 def cards_resumo(resumo, nome_equipe):
     st.markdown(f"##### 📋 {nome_equipe}")
     c1, c2, c3 = st.columns(3)
-    c1.metric("⏱️ HE Feitas",      formatar_horas(resumo["he_feitas"].sum()))
-    c2.metric("🔄 HE Compensadas", formatar_horas(resumo["he_compensadas"].sum()))
-    c3.metric("💰 HE a Pagar",     formatar_horas(resumo["he_a_pagar"].sum()))
+    c1.metric("⏱️ HE Feitas",      f"{resumo['he_feitas'].sum():.2f}h".replace(".", ","))
+    c2.metric("🔄 HE Compensadas", f"{resumo['he_compensadas'].sum():.2f}h".replace(".", ","))
+    c3.metric("📊 Saldo",          f"{resumo['saldo'].sum():.2f}h".replace(".", ","))
 
 # ─── TABELA ───────────────────────────────────────────────────────────────────
 def tabela_resumo(resumo):
     df_display = resumo.copy()
-    df_display["he_feitas"]      = df_display["he_feitas"].apply(formatar_horas)
-    df_display["he_compensadas"] = df_display["he_compensadas"].apply(formatar_horas)
-    df_display["he_a_pagar"]     = df_display["he_a_pagar"].apply(formatar_horas)
-    df_display.columns = ["Colaborador", "HE Feitas", "HE Compensadas", "HE a Pagar"]
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    df_display.columns = ["Colaborador", "HE Feitas", "HE Compensadas", "Saldo (h)"]
+    st.dataframe(
+        df_display.style.format({
+            "HE Feitas": lambda v: f"{v:.2f}".replace(".", ","),
+            "HE Compensadas": lambda v: f"{v:.2f}".replace(".", ","),
+            "Saldo (h)": lambda v: f"{v:.2f}".replace(".", ",")
+        }).applymap(
+            lambda v: "color: red" if v < 0 else "color: green",
+            subset=["Saldo (h)"]
+        ),
+        use_container_width=True,
+        hide_index=True
+    )
 
 # ─── GRÁFICO ──────────────────────────────────────────────────────────────────
 def grafico_linhas(resumo_norte=None, resumo_xavantes=None):
@@ -121,9 +129,8 @@ def grafico_linhas(resumo_norte=None, resumo_xavantes=None):
             y=resumo["he_feitas"],
             mode="lines+markers+text",
             name=f"{label} — HE Feitas",
-            text=resumo["he_feitas"].apply(formatar_horas),
+            text=resumo["he_feitas"].apply(lambda v: f"{v:.2f}".replace(".", ",")),
             textposition="top center",
-            textfont=dict(size=10, color="#222222"),
             line=dict(color=c_feitas, width=2),
             marker=dict(size=8)
         ))
@@ -133,21 +140,19 @@ def grafico_linhas(resumo_norte=None, resumo_xavantes=None):
             y=resumo["he_compensadas"],
             mode="lines+markers+text",
             name=f"{label} — HE Compensadas",
-            text=resumo["he_compensadas"].apply(formatar_horas),
+            text=resumo["he_compensadas"].apply(lambda v: f"{v:.2f}".replace(".", ",")),
             textposition="top center",
-            textfont=dict(size=10, color="#222222"),
             line=dict(color=c_comp, width=2, dash="dash"),
             marker=dict(size=8)
         ))
 
         fig.add_trace(go.Scatter(
             x=resumo["colaborador"],
-            y=resumo["he_a_pagar"],
+            y=resumo["saldo"],           # ← era he_a_pagar
             mode="lines+markers+text",
-            name=f"{label} — HE a Pagar",
-            text=resumo["he_a_pagar"].apply(formatar_horas),
+            name=f"{label} — Saldo",     # ← era HE a Pagar
+            text=resumo["saldo"].apply(lambda v: f"{v:.2f}".replace(".", ",")),
             textposition="top center",
-            textfont=dict(size=11, color="#222222", family="Arial Black"),
             line=dict(color=c_pagar, width=2),
             marker=dict(size=8)
         ))
